@@ -1,9 +1,9 @@
 import os
 import json
-
+import base64
 import requests
 
-from newrelic_api.exceptions import ConfigurationException, NewRelicAPIServerException
+from .exceptions import ConfigurationException, NewRelicAPIServerException
 
 
 class Resource(object):
@@ -11,8 +11,9 @@ class Resource(object):
     A base class for API resources
     """
     URL = 'https://api.newrelic.com/v2/'
+    URL_INSIGHTS_QUERY = 'https://insights-api.newrelic.com/v1/accounts/%s/query?nrql=%s'
 
-    def __init__(self, api_key=None):
+    def __init__(self, api_key=None, query_account=None, query_key=None):
         """
         :type api_key: str
         :param api_key: The API key. If no key is passed, the environment
@@ -22,14 +23,23 @@ class Resource(object):
             is raised.
         """
         self.api_key = api_key or os.environ.get('NEW_RELIC_API_KEY') or os.environ.get('NEWRELIC_API_KEY')
+        
+        # for insights query api
+        self.query_account = query_account or os.environ.get('NEW_RELIC_QUERY_ACCOUNT') or os.environ.get('NEWRELIC_QUERY_ACCOUNT')
+        self.query_key = query_key or os.environ.get('NEW_RELIC_QUERY_ACCOUNT') or os.environ.get('NEWRELIC_QUERY_ACCOUNT')
 
-        if not self.api_key:
-            raise ConfigurationException('NEW_RELIC_API_KEY or NEWRELIC_API_KEY not present in environment!')
+        if not self.api_key and not self.query_key:
+            raise ConfigurationException('NEW_RELIC_API_KEY or NEWRELIC_API_KEY or NEW_RELIC_QUERY_KEY or NEWRELIC_QUERY_KEY not present in environment!')
 
         self.headers = {
-            'Content-type': 'application/json',
-            'X-Api-Key': self.api_key,
+            'Content-type': 'application/json'
         }
+        
+        if self.api_key:
+            self.headers['X-Api-Key'] = self.api_key
+        
+        if self.query_key:
+            self.headers['X-Query-Key'] = self.query_key
 
     def _get(self, *args, **kwargs):
         """
